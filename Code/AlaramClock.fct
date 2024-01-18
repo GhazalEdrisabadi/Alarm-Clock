@@ -1,0 +1,9 @@
+main DSTACK_USAGE:0 DSTACK_LEVEL:0 FILE:"AlaramClock.c" LINE:38
+sprintf DSTACK_USAGE:14 DSTACK_LEVEL:14 FILE:"" LINE:1462
+_print DSTACK_USAGE:20 DSTACK_LEVEL:34 FILE:"" LINE:533
+strlen DSTACK_USAGE:2 DSTACK_LEVEL:36 FILE:"E:\Install Programs\CodeVision.v3.12\lib\string.lib" LINE:1706
+timer1_ovf_isr DSTACK_USAGE:12 DSTACK_LEVEL:48 FILE:"AlaramClock.c" LINE:218
+rtc_get_time DSTACK_USAGE:9 DSTACK_LEVEL:57 FILE:"E:\Install Programs\CodeVision.v3.12\lib\pcf8583.lib" LINE:121
+rtc_hold_on DSTACK_USAGE:1 DSTACK_LEVEL:58 FILE:"E:\Install Programs\CodeVision.v3.12\lib\pcf8583.lib" LINE:78
+rtc_get_status DSTACK_USAGE:1 DSTACK_LEVEL:59 FILE:"E:\Install Programs\CodeVision.v3.12\lib\pcf8583.lib" LINE:38
+rtc_read DSTACK_USAGE:3 DSTACK_LEVEL:62 FILE:"E:\Install Programs\CodeVision.v3.12\lib\pcf8583.lib" LINE:15

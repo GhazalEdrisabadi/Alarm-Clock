@@ -1,0 +1,229 @@
+
+#include <mega16.h>
+
+#include <delay.h>
+
+// I2C Bus functions
+#include <i2c.h>
+
+// PCF8583 Real Time Clock functions
+#include <pcf8583.h>
+
+// Alphanumeric LCD functions
+#include <alcd.h>
+
+#include <stdio.h>
+#include <string.h>
+
+// crystal frequency - 1MHz
+#define xtal 1000000
+
+#define ddelay 20
+#define alarm PORTD.0
+
+// Declare your global variables here
+int mscounter;
+char lcd_buff[16];
+char alarm_state[4];
+bit bitcheck;
+unsigned char rtchour, rtcmin, rtcsec, rtchsec;
+unsigned char chour, cminute;
+eeprom unsigned char alarmstate;
+eeprom unsigned char alhour, alminute;
+
+// Timer1 overflow interrupt service routine
+interrupt [TIM1_OVF] void timer1_ovf_isr(void)
+{
+    mscounter ++;
+    if (mscounter == 15)
+    {
+        //initial
+        mscounter = 0;
+        // read the time from the RTC 0
+        rtc_get_time(0, &rtchour, &rtcmin, &rtcsec, &rtchsec);
+    }
+}
+
+
+// functions
+void loop(void);
+void refresh_lcd(void);
+
+void main(void)
+{
+// Declare your local variables here
+
+// set PORTA as input for LCD - values = 0
+DDRA=0x00;
+PORTA=0x00;
+
+// set PORTB as output for buttons - values = 1
+DDRB=0xFF;
+PORTB=0xFF;
+
+// set PIN0 of PORTD as output - value = 0
+DDRD.0=1;
+PORTD.0=0;
+
+// Timer/Counter 1 initialization
+// Clock source: System Clock
+// Clock value: 1000.000 kHz
+// Mode: Normal top=0xFFFF
+// OC1A output: Disconnected
+// OC1B output: Disconnected
+// Noise Canceler: Off
+// Input Capture on Falling Edge
+// Timer Period: 65.536 ms
+// Timer1 Overflow Interrupt: On
+// Input Capture Interrupt: Off
+// Compare A Match Interrupt: Off
+// Compare B Match Interrupt: Off
+TCCR1A=0x00;
+TCCR1B=0x01;
+TCNT1H=0x00;
+TCNT1L=0x00;
+ICR1H=0x00;
+ICR1L=0x00;
+OCR1AH=0x00;
+OCR1AL=0x00;
+OCR1BH=0x00;
+OCR1BL=0x00;
+
+// Timer(s)/Counter(s) Interrupt(s) initialization
+TIMSK=0x04;
+
+// Bit-Banged I2C Bus initialization
+// I2C Port: PORTC
+// I2C SDA bit: 1
+// I2C SCL bit: 0
+// Bit Rate: 100 kHz
+// Note: I2C settings are specified in the
+// Project|Configure|C Compiler|Libraries|I2C menu.
+i2c_init();
+
+// PCF8583 Real Time Clock initialization
+rtc_init(0,0);
+
+
+lcd_init(16);
+lcd_clear();
+lcd_puts("  Alarm  Clock  ");
+delay_ms(2500);
+lcd_clear();
+
+// Global enable interrupts
+#asm("sei")
+
+    if (alarmstate == 255)
+    {
+        sprintf(alarm_state, "ON ");
+    }
+    if (alarmstate == 0)
+    {
+        sprintf(alarm_state, "OFF");
+    }
+    rtc_get_time(0, &rtchour, &rtcmin, &rtcsec, &rtchsec);
+    
+    loop();
+}
+
+void loop(void)
+{
+    while (1)
+    {   
+        refresh_lcd();    
+        //Check hour button
+        bitcheck = PINB.0;
+        delay_ms(ddelay);
+        bitcheck = bitcheck | PINB.0;
+        if (bitcheck == 0)
+        {
+            chour = rtchour;
+            chour ++;
+            if (chour > 23)
+            {
+                chour = 0;
+            }     
+            rtc_set_time(0,chour,rtcmin,0,0);
+            rtc_get_time(0, &rtchour, &rtcmin, &rtcsec, &rtchsec);
+        }
+        //Check minute button
+        bitcheck = PINB.1;
+        delay_ms(ddelay);
+        bitcheck = bitcheck | PINB.1;
+        if (bitcheck == 0)
+        {
+            cminute = rtcmin;
+            cminute ++;
+            if (cminute > 59)
+            {
+                cminute = 0;
+            }     
+            rtc_set_time(0,rtchour,cminute,0,0);
+            rtc_get_time(0, &rtchour, &rtcmin, &rtcsec, &rtchsec);
+        }
+        //Check Alarm hour button 
+        bitcheck = PINB.2;
+        delay_ms(ddelay);
+        bitcheck = bitcheck | PINB.2;
+        if (bitcheck == 0)
+        {
+            alhour ++;
+            if (alhour > 23)
+                alhour = 0;
+        }
+        //Check Alarm minute button 
+        bitcheck = PINB.3;
+        delay_ms(ddelay);
+        bitcheck = bitcheck | PINB.3;
+        if (bitcheck == 0)
+        {
+            alminute ++;
+            if (alminute > 59)
+                alminute = 0;
+        }
+        //Check Alarm state
+        bitcheck = PINB.4;
+        delay_ms(ddelay);
+        bitcheck = bitcheck | PINB.4;
+        if (bitcheck == 0)
+        {
+            if (alarmstate == 0)
+            {
+                alarmstate = 255;
+                sprintf(alarm_state, "ON ");
+            }
+            else if (alarmstate == 255)
+            {
+                alarmstate = 0;
+                sprintf(alarm_state, "OFF");
+            }
+        }
+        //alarm
+        if (alhour == rtchour && alminute == rtcmin)
+        {
+            if (alarmstate == 255)
+            {
+                alarm = 1;    
+            }
+        }
+        //
+        if (alarm == 1 && alarmstate == 0)
+        {
+            alarm = 0;
+        }
+        
+    }
+}
+
+void refresh_lcd(void)
+{
+    // display the time on the LCD
+    sprintf(lcd_buff,"Time: %2d:%02d:%02d",rtchour, rtcmin, rtcsec);
+    lcd_clear();
+    lcd_gotoxy(0, 0);
+    lcd_puts(lcd_buff);
+    sprintf(lcd_buff,"Alrm: %2d:%02d %s", alhour, alminute, alarm_state);
+    lcd_gotoxy(0, 1);
+    lcd_puts(lcd_buff);
+}
